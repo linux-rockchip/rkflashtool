@@ -8,7 +8,7 @@ LIBS	= -lusb-1.0
 PREFIX ?= usr/local
 
 ifdef LIBUSB
-CFLAGS	+= -I$(LIBUSB)/include
+CFLAGS	+= -I$(LIBUSB)/include -L$(LIBUSB)/lib
 LDFLAGS	+= -L$(LIBUSB)/lib
 endif
 
@@ -94,4 +94,3 @@ uninstall:
 	@echo $(DL)    VALUE "Translation", 0x409, 1252 $(DL)>>$@
 	@echo $(DL)  END $(DL)>>$@
 	@echo $(DL)END $(DL)>>$@
-
