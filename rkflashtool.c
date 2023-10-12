@@ -117,6 +117,7 @@ static const struct t_pid {
     { 0x320c, "RK3328" },
     { 0x330a, "RK3368" },
     { 0x330c, "RK3399" },
+    { 0x350c, "RK3528" },
     { 0, "" },
 };
 
