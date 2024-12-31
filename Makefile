@@ -2,7 +2,7 @@
 
 CC	= $(CROSSPREFIX)gcc
 LD	= $(CC)
-CFLAGS	= -O2 -W -Wall
+CFLAGS	= -O2 -Wall -Wextra
 LDFLAGS	=
 PREFIX ?= usr/local
 

@@ -196,10 +196,14 @@ static void send_exec(uint32_t krnl_addr, uint32_t parm_addr) {
     memset(cmd, 0 , 31);
     memcpy(cmd, "USBC", 4);
 
-    if (r)          SETBE32(cmd+4, r);
-    if (krnl_addr)  SETBE32(cmd+17, krnl_addr);
-    if (parm_addr)  SETBE32(cmd+22, parm_addr);
-                    SETBE32(cmd+12, RKFT_CMD_EXECUTESDRAM);
+    if (r)
+        SETBE32(cmd+4, r);
+    if (krnl_addr)
+        SETBE32(cmd+17, krnl_addr);
+    if (parm_addr)
+        SETBE32(cmd+22, parm_addr);
+
+    SETBE32(cmd+12, RKFT_CMD_EXECUTESDRAM);
 
     libusb_bulk_transfer(h, 2|LIBUSB_ENDPOINT_OUT, cmd, sizeof(cmd), &tmp, 0);
 }
@@ -537,7 +541,7 @@ action:
     case 'P':   /* Write parameters */
         {
             /* Header */
-            strncpy((char *)buf, "PARM", 4);
+            memcpy((char *)buf, "PARM", 4);
 
             /* Content */
             int sizeRead;
