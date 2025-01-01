@@ -1,5 +1,4 @@
 /* rkflashtool - for RockChip based devices.
- *               (RK2808, RK2818, RK2918, RK2928, RK3066, RK3068, RK3126 and RK3188)
  *
  * Copyright (C) 2010-2014 by Ivo van Poorten, Fukaumi Naoki, Guenter Knauf,
  *                            Ulrich Prinz, Steve Wilson
@@ -323,7 +322,7 @@ int main(int argc, char **argv) {
     while ( !h && ppid->pid) {
         h = libusb_open_device_with_vid_pid(c, 0x2207, ppid->pid);
         if (h) {
-            info("Detected %s...\n", ppid->name);
+            info("Detected %s\n", ppid->name);
             break;
         }
         ppid++;
@@ -356,31 +355,35 @@ int main(int argc, char **argv) {
 
     switch(action) {
     case 'l':
-        info("load DDR init\n");
+        info("Downloading TPL ");
         crc16 = 0xffff;
         while ((nr = read(0, buf, 4096)) == 4096) {
             crc16 = rkcrc16(crc16, buf, nr);
             libusb_control_transfer(h, LIBUSB_REQUEST_TYPE_VENDOR, 12, 0, 1137, buf, nr, 0);
+            fprintf(stderr, "#");
         }
         if (nr != -1) {
             crc16 = rkcrc16(crc16, buf, nr);
             buf[nr++] = crc16 >> 8;
             buf[nr++] = crc16 & 0xff;
             libusb_control_transfer(h, LIBUSB_REQUEST_TYPE_VENDOR, 12, 0, 1137, buf, nr, 0);
+            fprintf(stderr, ".\n");
         }
         goto exit;
     case 'L':
-        info("load USB loader\n");
+        info("Downloading SPL ");
         crc16 = 0xffff;
         while ((nr = read(0, buf, 4096)) == 4096) {
             crc16 = rkcrc16(crc16, buf, nr);
             libusb_control_transfer(h, LIBUSB_REQUEST_TYPE_VENDOR, 12, 0, 1138, buf, nr, 0);
+            fprintf(stderr, "#");
         }
         if (nr != -1) {
             crc16 = rkcrc16(crc16, buf, nr);
             buf[nr++] = crc16 >> 8;
             buf[nr++] = crc16 & 0xff;
             libusb_control_transfer(h, LIBUSB_REQUEST_TYPE_VENDOR, 12, 0, 1138, buf, nr, 0);
+            fprintf(stderr, ".\n");
         }
         goto exit;
     }
