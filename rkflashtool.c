@@ -51,7 +51,6 @@ int _CRT_fmode = _O_BINARY;
 #define RKFT_MEM_INCR       0x80
 #define RKFT_OFF_INCR       (RKFT_BLOCKSIZE>>9)
 #define MAX_PARAM_LENGTH    (128*512-12) /* cf. MAX_LOADER_PARAM in rkloader */
-#define SDRAM_BASE_ADDRESS  0x60000000
 
 #define RKFT_CMD_TESTUNITREADY      0x80000600
 #define RKFT_CMD_READFLASHID        0x80000601
@@ -117,6 +116,7 @@ static const struct t_pid {
     { 0x320c, "RK3328" },
     { 0x330a, "RK3368" },
     { 0x330c, "RK3399" },
+    { 0x350b, "RK3588" }, // RK3588, RK3588S, RK3588S2, RK3582
     { 0x350c, "RK3528" },
     { 0, "" },
 };
@@ -148,6 +148,7 @@ static uint8_t cmd[31], res[13], buf[RKFT_BLOCKSIZE];
 static uint8_t ibuf[RKFT_IDB_BLOCKSIZE];
 static libusb_context *c;
 static libusb_device_handle *h = NULL;
+static int ep;
 static int tmp;
 
 static const char *const strings[2] = { "info", "fatal" };
@@ -205,7 +206,7 @@ static void send_exec(uint32_t krnl_addr, uint32_t parm_addr) {
 
     SETBE32(cmd+12, RKFT_CMD_EXECUTESDRAM);
 
-    libusb_bulk_transfer(h, 2|LIBUSB_ENDPOINT_OUT, cmd, sizeof(cmd), &tmp, 0);
+    libusb_bulk_transfer(h, ep|LIBUSB_ENDPOINT_OUT, cmd, sizeof(cmd), &tmp, 0);
 }
 
 static void send_reset(uint8_t flag) {
@@ -218,7 +219,7 @@ static void send_reset(uint8_t flag) {
     SETBE32(cmd+12, RKFT_CMD_RESETDEVICE);
     cmd[16] = flag;
 
-    libusb_bulk_transfer(h, 2|LIBUSB_ENDPOINT_OUT, cmd, sizeof(cmd), &tmp, 0);
+    libusb_bulk_transfer(h, ep|LIBUSB_ENDPOINT_OUT, cmd, sizeof(cmd), &tmp, 0);
 }
 
 static void send_cmd(uint32_t command, uint32_t offset, uint16_t nsectors) {
@@ -232,11 +233,11 @@ static void send_cmd(uint32_t command, uint32_t offset, uint16_t nsectors) {
     if (nsectors)   SETBE16(cmd+22, nsectors);
     if (command)    SETBE32(cmd+12, command);
 
-    libusb_bulk_transfer(h, 2|LIBUSB_ENDPOINT_OUT, cmd, sizeof(cmd), &tmp, 0);
+    libusb_bulk_transfer(h, ep|LIBUSB_ENDPOINT_OUT, cmd, sizeof(cmd), &tmp, 0);
 }
 
 static void send_buf(unsigned int s) {
-    libusb_bulk_transfer(h, 2|LIBUSB_ENDPOINT_OUT, buf, s, &tmp, 0);
+    libusb_bulk_transfer(h, ep|LIBUSB_ENDPOINT_OUT, buf, s, &tmp, 0);
 }
 
 static void recv_res(void) {
@@ -250,10 +251,11 @@ static void recv_buf(unsigned int s) {
 #define NEXT do { argc--;argv++; } while(0)
 
 int main(int argc, char **argv) {
-    struct libusb_device_descriptor desc;
+    struct libusb_device_descriptor dev_desc;
+    struct libusb_config_descriptor *conf_desc;
     const struct t_pid *ppid = pidtab;
     ssize_t nr;
-    int offset = 0, size = 0;
+    uint32_t offset = 0, size = 0;
     uint16_t crc16;
     uint8_t flag = 0;
     char action;
@@ -338,11 +340,17 @@ int main(int argc, char **argv) {
         fatal("cannot claim interface\n");
     info("interface claimed\n");
 
-    if (libusb_get_device_descriptor(libusb_get_device(h), &desc) != 0)
+    if (libusb_get_device_descriptor(libusb_get_device(h), &dev_desc) != 0)
         fatal("cannot get device descriptor\n");
 
-    if (desc.bcdUSB == 0x200)
-        info("MASK ROM MODE\n");
+    if (dev_desc.iManufacturer == 0)
+        info("MASKROM mode\n");
+
+    if (libusb_get_active_config_descriptor(libusb_get_device(h), &conf_desc) != 0)
+        fatal("cannot get config descriptor\n");
+
+    ep = conf_desc->interface[0].altsetting[0].endpoint[1].bEndpointAddress;
+    info("Using endpoint %u for bulk transfer\n", ep);
 
     switch(action) {
     case 'l':
@@ -394,7 +402,7 @@ int main(int argc, char **argv) {
         /* Check parameter length */
         uint32_t *p = (uint32_t*)buf+1;
         size = *p;
-        if (size < 0 || size > MAX_PARAM_LENGTH)
+        if (size > MAX_PARAM_LENGTH)
           fatal("Bad parameter length!\n");
 
         /* Search for mtdparts */
@@ -524,7 +532,7 @@ action:
             /* Check size */
             size = *p;
             info("size:  0x%08x\n", size);
-            if (size < 0 || size > MAX_PARAM_LENGTH)
+            if (size > MAX_PARAM_LENGTH)
                 fatal("Bad parameter length!\n");
 
             /* Check CRC */
@@ -577,7 +585,7 @@ action:
             int sizeRead = size > RKFT_BLOCKSIZE ? RKFT_BLOCKSIZE : size;
             infocr("reading memory at offset 0x%08x size %x", offset, sizeRead);
 
-            send_cmd(RKFT_CMD_READSDRAM, offset - SDRAM_BASE_ADDRESS, sizeRead);
+            send_cmd(RKFT_CMD_READSDRAM, offset, sizeRead);
             recv_buf(sizeRead);
             recv_res();
 
@@ -598,7 +606,7 @@ action:
             }
             infocr("writing memory at offset 0x%08x size %x", offset, sizeRead);
 
-            send_cmd(RKFT_CMD_WRITESDRAM, offset - SDRAM_BASE_ADDRESS, sizeRead);
+            send_cmd(RKFT_CMD_WRITESDRAM, offset, sizeRead);
             send_buf(sizeRead);
             recv_res();
 
@@ -609,7 +617,7 @@ action:
         break;
     case 'B':   /* Exec RAM */
         info("booting kernel...\n");
-        send_exec(offset - SDRAM_BASE_ADDRESS, size - SDRAM_BASE_ADDRESS);
+        send_exec(offset, size);
         recv_res();
         break;
     case 'i':   /* Read IDB */
@@ -641,7 +649,7 @@ action:
             }
 
             send_cmd(RKFT_CMD_WRITESECTOR, offset, 1);
-            libusb_bulk_transfer(h, 2|LIBUSB_ENDPOINT_OUT, ibuf, RKFT_IDB_BLOCKSIZE, &tmp, 0);
+            libusb_bulk_transfer(h, ep|LIBUSB_ENDPOINT_OUT, ibuf, RKFT_IDB_BLOCKSIZE, &tmp, 0);
             recv_res();
             offset += 1;
             size -= 1;
