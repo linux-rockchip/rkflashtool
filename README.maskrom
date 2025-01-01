@@ -1,0 +1,15 @@
+The following SoCs require RC4 encryption for the TPL and SPL:
+
+- Old ones
+- RK3308
+- RK3328
+- RK3399
+
+The command to run rkflashtool with RC4 encryption is:
+
+```
+openssl rc4 -provider legacy -K 7c4e0304550509072d2c7b38170d1711 \
+	< tpl.bin | rkflashtool l
+openssl rc4 -provider legacy -K 7c4e0304550509072d2c7b38170d1711 \
+	< spl.bin | rkflashtool L
+```
