@@ -111,7 +111,7 @@ static void unpack_rkaf(void) {
         if (memcmp(path, "SELF", 4) == 0) {
             info("skipping SELF entry\n");
         } else {
-            info("%08x-%08x %-26s (size: %d)\n", ioff, ioff + isize - 1, path, fsize);
+            info("%08x-%08x %-26s (size: %u)\n", ioff, ioff + isize - 1, path, fsize);
 
             // strip header and footer of parameter file
             if (memcmp(name, "parameter", 9) == 0) {
@@ -164,7 +164,7 @@ static void unpack_rkfw(void) {
         fatal("cannot find BOOT signature\n");
     }
 
-    info("%08x-%08x %-26s (size: %d)\n", ioff, ioff + isize -1, first_part, isize);
+    info("%08x-%08x %-26s (size: %u)\n", ioff, ioff + isize -1, first_part, isize);
     write_file(first_part, buf+ioff, isize);
 
     ioff  = GET32LE(buf+0x21);
@@ -173,7 +173,7 @@ static void unpack_rkfw(void) {
     if (memcmp(buf+ioff, "RKAF", 4))
         fatal("cannot find embedded RKAF update.img\n");
 
-    info("%08x-%08x %-26s (size: %d)\n", ioff, ioff + isize -1, "embedded-update.img", isize);
+    info("%08x-%08x %-26s (size: %u)\n", ioff, ioff + isize -1, "embedded-update.img", isize);
     write_file("embedded-update.img", buf+ioff, isize);
 
 }
@@ -212,7 +212,7 @@ static void unpack_rkfp(void) {
         isize = GET32LE(p+40);
         fsize = GET32LE(p+44);
 
-        info("%08x-%08x %-26s (type: %02x) (property: %02x) (size: %d)\n",
+        info("%08x-%08x %-26s (type: %02x) (property: %02x) (size: %u)\n",
             ioff*pss, (ioff + isize)*pss, path, GET32LE(p+32), GET32LE(p+48), fsize);
         write_file(path, buf+(ioff*pss), fsize);
     }
