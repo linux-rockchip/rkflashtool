@@ -135,6 +135,7 @@ static void unpack_rkaf(void) {
 
 static void unpack_rkfw(void) {
     const char *chip = NULL;
+    char *first_part = NULL;
 
     info("RKFW signature detected\n");
     info("version: %d.%d.%d\n", buf[9], buf[8], (buf[7]<<8)+buf[6]);
@@ -154,11 +155,16 @@ static void unpack_rkfw(void) {
     ioff  = GET32LE(buf+0x19);
     isize = GET32LE(buf+0x1d);
 
-    if (memcmp(buf+ioff, "BOOT", 4))
+    if (!memcmp(buf+ioff, "BOOT", 4)) {
+        first_part = "BOOT";
+    } else if (!memcmp(buf+ioff, "LDR ", 4)) {
+        first_part = "LDR";
+    } else {
         fatal("cannot find BOOT signature\n");
+    }
 
-    info("%08x-%08x %-26s (size: %d)\n", ioff, ioff + isize -1, "BOOT", isize);
-    write_file("BOOT", buf+ioff, isize);
+    info("%08x-%08x %-26s (size: %d)\n", ioff, ioff + isize -1, first_part, isize);
+    write_file(first_part, buf+ioff, isize);
 
     ioff  = GET32LE(buf+0x21);
     isize = GET32LE(buf+0x25);
