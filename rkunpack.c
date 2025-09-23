@@ -148,6 +148,7 @@ static void unpack_rkfw(void) {
     case 0x70:  chip = "rk31xx"; break;
     case 0x80:  chip = "rk32xx"; break;
     case 0x41:  chip = "rk3368"; break;
+    case 0x36:  chip = "rv1106"; break;
     default: info("You got a brand new chip (%#x), congratulations!!!\n", buf[0x15]);
     }
     info("family: %s\n", chip ? chip : "unknown");
